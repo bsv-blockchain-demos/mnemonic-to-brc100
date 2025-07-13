@@ -188,7 +188,7 @@ const generateAddresses = async () => {
         inputs: tx.inputs.map<CreateActionInput>((input: TransactionInput) => ({
           inputDescription: 'from mnemonic',
           unlockingScript: input.unlockingScript!.toHex(),
-          outpoint: input.sourceTXID + '.' + String(input.sourceOutputIndex)
+          outpoint: input.sourceTransaction!.id('hex') + '.' + String(input.sourceOutputIndex)
         }))
       })
 
@@ -201,49 +201,53 @@ const generateAddresses = async () => {
   };
 
   return (
-    <div className="App">
-      <h1>Centbee to BRC-100</h1>
-      <div>
-        <label>Mnemonic:</label>
-        <textarea value={mnemonic} onChange={e => setMnemonic(e.target.value)} />
-      </div>
-      <div>
-        <label>PIN:</label>
-        <input type="password" value={pin} onChange={e => setPin(e.target.value)} />
-      </div>
-      <div>
-        <label>Derivation Path Prefix:</label>
-        <input value={pathPrefix} onChange={e => setPathPrefix(e.target.value)} />
-      </div>
-      <button onClick={generateAddresses} disabled={!!isLoading}>Generate Addresses</button>
+    <div className="app-container">
+      <h1>Mnemonic to BRC-100</h1>
+<form className="input-form">
+  <div className="form-group">
+    <label>Mnemonic:</label>
+    <textarea className="form-input" value={mnemonic} onChange={e => setMnemonic(e.target.value)} />
+  </div>
+  <div className="form-group">
+    <label>PIN:</label>
+    <input className="form-input" type="password" value={pin} onChange={e => setPin(e.target.value)} />
+  </div>
+  <div className="form-group">
+    <label>Derivation Path Prefix:</label>
+    <input className="form-input" value={pathPrefix} onChange={e => setPathPrefix(e.target.value)} />
+  </div>
+  <button className="primary-button" onClick={generateAddresses} disabled={!!isLoading}>Derive and Check Balance of Addresses</button>
+</form>
       {isLoading && <p>{isLoading}</p>}
-      {results.length > 0 && (
-        <table>
-          <thead>
-            <tr>
-              <th>Index</th>
-              <th>Address</th>
-              <th>Balance (sat)</th>
-              <th>UTXO Count</th>
-            </tr>
-          </thead>
-          <tbody>
-            {results.map((res, i) => (
-              <tr key={i}>
-                <td>{res.index}</td>
-                <td>{res.address}</td>
-                <td>{res.balance}</td>
-                <td>{res.count}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-      {results.length > 0 && <button onClick={createIngestTx} disabled={!!isLoading}>Create Ingest Tx</button>}
-      {txHex && <>
-        <a href={`https://whatsonchain.com/tx/${Transaction.fromHex(txHex).id('hex')}`}>whats on chain</a>
-        <pre>{txHex}</pre>
-      </>}
+{results.length > 0 && (
+  <div className="results-container">
+    <table className="utxo-table">
+      <thead>
+        <tr>
+          <th>Index</th>
+          <th>Address</th>
+          <th>Balance (sat)</th>
+          <th>UTXO Count</th>
+        </tr>
+      </thead>
+      <tbody>
+        {results.map((res, i) => (
+          <tr key={i}>
+            <td>{res.index}</td>
+            <td>{res.address}</td>
+            <td>{res.balance}</td>
+            <td>{res.count}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+    <button className="primary-button" onClick={createIngestTx} disabled={!!isLoading}>Sweep Into My Local Wallet</button>
+  </div>
+)}
+{txHex && <div className="tx-result">
+  <a className="tx-link" href={`https://whatsonchain.com/tx/${Transaction.fromHex(txHex).id('hex')}`} target="_blank">View on What's On Chain</a>
+  <pre className="tx-hex">{txHex}</pre>
+</div>}
     </div>
   );
 }
