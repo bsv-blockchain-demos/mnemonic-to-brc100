@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Mnemonic, HD, PrivateKey, PublicKey, P2PKH, Transaction, Utils } from '@bsv/sdk';
+import { Mnemonic, HD, PrivateKey, PublicKey, P2PKH, Transaction, Utils, Script, WalletClient, type TransactionInput, type CreateActionInput } from '@bsv/sdk';
 import './App.css';
 
 
@@ -11,6 +11,8 @@ let isProcessing = false;
 let lastRequestTime = 0;
 
 const MIN_INTERVAL = 334; // ms for ~3 requests per second
+
+const wallet = new WalletClient()
 
 async function queuedFetch(url: string): Promise<Response> {
   return new Promise((resolve, reject) => {
@@ -41,12 +43,27 @@ async function processQueue() {
   isProcessing = false;
 }
 
+interface wocUTXO {
+  height: number;
+  tx_pos: number;
+  tx_hash: string;
+  value: number;
+  isSpentInMempoolTx: boolean;
+}
+
+interface utxoResponse {
+  address: string;
+  error: string;
+  result: wocUTXO[];
+  script: string;
+}
+
 interface Result {
   index: number;
   address: string;
   balance: number;
   count: number;
-  utxos: any[];
+  utxos: utxoResponse;
 }
 
 function App() {
@@ -55,10 +72,10 @@ function App() {
   const [pathPrefix, setPathPrefix] = useState<string>("m/44'/0/0");
   const [results, setResults] = useState<Result[]>([]);
   const [txHex, setTxHex] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<string>('');
 
-  const generateAddresses = async () => {
-    setIsLoading(true);
+const generateAddresses = async () => {
+  setIsLoading('Generating seed...');
     let seed: number[];
     try {
       const mn = new Mnemonic(mnemonic);
@@ -69,6 +86,7 @@ function App() {
     }
 
     const masterKey = HD.fromSeed(seed);
+  setIsLoading('Searching for used addresses...');
 
     let index = 0;
     let consecutiveUnused = 0;
@@ -80,6 +98,7 @@ function App() {
       const privKey = childKey.privKey as PrivateKey;
       const pubKey = privKey.toPublicKey() as PublicKey;
       const address = pubKey.toAddress().toString();
+      setIsLoading(`Checking address ${index}: ${address}`);
 
       // Check if ever used (using history length > 0)
       const historyRes = await queuedFetch(`https://api.whatsonchain.com/v1/bsv/main/address/${address}/history`);
@@ -90,10 +109,10 @@ function App() {
         // Fetch current UTXOs
         const unspentRes = await queuedFetch(`https://api.whatsonchain.com/v1/bsv/main/address/${address}/unspent/all`);
         const utxos = await unspentRes.json();
-        if (utxos.length > 0) {
+        if (utxos.result.length > 0) {
           console.log('success')
-          const balance = utxos.reduce((sum: number, utxo: { value: number }) => sum + utxo.value, 0);
-          usedResults.push({ index, address, balance, count: utxos.length, utxos });
+          const balance = utxos.result.reduce((sum: number, utxo: { value: number }) => sum + utxo.value, 0);
+          usedResults.push({ index, address, balance, count: utxos.result.length, utxos });
         }
         consecutiveUnused = 0;
       } else {
@@ -105,7 +124,7 @@ function App() {
 
     setResults(usedResults);
     setTxHex('');
-    setIsLoading(false);
+    setIsLoading('');
   };
 
   const createIngestTx = async () => {
@@ -113,47 +132,72 @@ function App() {
       alert('No outputs found to ingest');
       return;
     }
+    try {
+      setIsLoading('Creating ingest transaction...');
+      console.log({ results })
 
-    const seed = new Mnemonic().fromString(mnemonic).toSeed(pin);
-    const masterKey = HD.fromSeed(seed);
+      const seed = new Mnemonic().fromString(mnemonic).toSeed(pin);
+      const masterKey = HD.fromSeed(seed);
 
-    // Collect all UTXOs with their details
-    const utxosByTxid: { [key: string]: { vout: number; privKey: PrivateKey; value: number }[] } = {};
-    results.forEach(res => {
-      const fullPath = `${pathPrefix}/${res.index}`;
-      const childKey = masterKey.derive(fullPath);
-      const privKey = childKey.privKey as PrivateKey;
+      // Collect all UTXOs with their details
+      const utxosByTxid: { [key: string]: { vout: number; privKey: PrivateKey; value: number }[] } = {};
+      results.forEach(res => {
+        const fullPath = `${pathPrefix}/${res.index}`;
+        const childKey = masterKey.derive(fullPath);
+        const privKey = childKey.privKey as PrivateKey;
 
-      res.utxos.forEach((utxo: { tx_hash: string; tx_pos: number; value: number }) => {
-        const txid = utxo.tx_hash;
-        if (!utxosByTxid[txid]) {
-          utxosByTxid[txid] = [];
-        }
-        utxosByTxid[txid].push({ vout: utxo.tx_pos, privKey, value: utxo.value });
-      });
-    });
-
-    const tx = new Transaction(1, []);
-
-    for (const [txid, utxoList] of Object.entries(utxosByTxid)) {
-      const beefRes = await queuedFetch(`https://api.whatsonchain.com/v1/bsv/main/tx/${txid}/beef`);
-      const beefHex = await beefRes.text();
-      const beefBytes = Utils.toArray(beefHex, 'hex'); // Adjusted to fromHex assuming it returns bytes
-      const sourceTx = Transaction.fromBEEF(beefBytes);
-
-      utxoList.forEach(utxo => {
-        const template = new P2PKH().unlock(utxo.privKey, 'none', true);
-        tx.addInput({
-          sourceTransaction: sourceTx,
-          sourceOutputIndex: utxo.vout,
-          unlockingScriptTemplate: template
+        res.utxos.result.forEach((utxo: { tx_hash: string; tx_pos: number; value: number }) => {
+          const txid = utxo.tx_hash;
+          if (!utxosByTxid[txid]) {
+            utxosByTxid[txid] = [];
+          }
+          utxosByTxid[txid].push({ vout: utxo.tx_pos, privKey, value: utxo.value });
         });
       });
+
+      const tx = new Transaction(1, []);
+      tx.addOutput({
+        satoshis: 1,
+        lockingScript: Script.fromASM('OP_NOP')
+      })
+
+      for (const [txid, utxoList] of Object.entries(utxosByTxid)) {
+        setIsLoading(`Fetching BEEF for txid ${txid}...`);
+        const beefRes = await queuedFetch(`https://api.whatsonchain.com/v1/bsv/main/tx/${txid}/beef`);
+        const beefHex = await beefRes.text();
+        const beefBytes = Utils.toArray(beefHex, 'hex'); // Adjusted to fromHex assuming it returns bytes
+        const sourceTx = Transaction.fromBEEF(beefBytes);
+
+        utxoList.forEach(utxo => {
+          const template = new P2PKH().unlock(utxo.privKey, 'none', true);
+          tx.addInput({
+            sourceTransaction: sourceTx,
+            sourceOutputIndex: utxo.vout,
+            unlockingScriptTemplate: template
+          });
+        });
+      }
+
+      setIsLoading('Signing Tx');
+      await tx.sign();
+
+      setIsLoading('Sending Tx to WalletClient')    
+      const response = await wallet.createAction({
+        inputBEEF: tx.toAtomicBEEF(),
+        description: 'Ingesting Swept funds from mnemonic',
+        inputs: tx.inputs.map<CreateActionInput>((input: TransactionInput) => ({
+          inputDescription: 'from mnemonic',
+          unlockingScript: input.unlockingScript!.toHex(),
+          outpoint: input.sourceTXID + '.' + String(input.sourceOutputIndex)
+        }))
+      })
+
+      setTxHex(Transaction.fromBEEF(response.tx as number[]).toHex())
+    } catch (error) {
+      console.error({ error })
+    } finally {
+      setIsLoading('');
     }
-
-  await tx.sign();
-
-    setTxHex(tx.toHex());
   };
 
   return (
@@ -171,8 +215,8 @@ function App() {
         <label>Derivation Path Prefix:</label>
         <input value={pathPrefix} onChange={e => setPathPrefix(e.target.value)} />
       </div>
-      <button onClick={generateAddresses} disabled={isLoading}>Generate Addresses</button>
-      {isLoading && <p>Loading... Searching for used addresses.</p>}
+      <button onClick={generateAddresses} disabled={!!isLoading}>Generate Addresses</button>
+      {isLoading && <p>{isLoading}</p>}
       {results.length > 0 && (
         <table>
           <thead>
@@ -195,8 +239,11 @@ function App() {
           </tbody>
         </table>
       )}
-      {results.length > 0 && <button onClick={createIngestTx}>Create Ingest Tx</button>}
-      {txHex && <pre>{txHex}</pre>}
+      {results.length > 0 && <button onClick={createIngestTx} disabled={!!isLoading}>Create Ingest Tx</button>}
+      {txHex && <>
+        <a href={`https://whatsonchain.com/tx/${Transaction.fromHex(txHex).id('hex')}`}>whats on chain</a>
+        <pre>{txHex}</pre>
+      </>}
     </div>
   );
 }
