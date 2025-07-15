@@ -74,6 +74,10 @@ function App() {
   const [txHex, setTxHex] = useState<string>('');
   const [isLoading, setIsLoading] = useState<string>('');
 
+const [consecutiveUnusedGap, setConsecutiveUnusedGap] = useState<number>(5);
+
+const [startOffset, setStartOffset] = useState<number>(0);
+
 const generateAddresses = async () => {
   setIsLoading('Generating seed...');
     let seed: number[];
@@ -88,16 +92,17 @@ const generateAddresses = async () => {
     const masterKey = HD.fromSeed(seed);
   setIsLoading('Searching for used addresses...');
 
-    let index = 0;
+    let index = startOffset;
     let consecutiveUnused = 0;
     const usedResults: Result[] = [];
 
-    while (consecutiveUnused < 20) {
+    while (consecutiveUnused < consecutiveUnusedGap) {
       const fullPath = `${pathPrefix}/${index}`;
       const childKey = masterKey.derive(fullPath);
       const privKey = childKey.privKey as PrivateKey;
       const pubKey = privKey.toPublicKey() as PublicKey;
       const address = pubKey.toAddress().toString();
+      console.log({ address })
       setIsLoading(`Checking address ${index}: ${address}`);
 
       // Check if ever used (using history length > 0)
@@ -122,12 +127,29 @@ const generateAddresses = async () => {
       index++;
     }
 
-    setResults(usedResults);
+    setResults(r => {
+      const set = new Set()
+      r.forEach(r => set.add(r.address))
+      usedResults.forEach(r => set.add(r.address))
+      const uniqueResults = [...set]
+      const updatedResults = uniqueResults.map(address => r.find(r => r.address === address) || usedResults.find(r => r.address === address) || undefined)
+      return updatedResults.filter(r => r !== undefined)
+    });
     setTxHex('');
     setIsLoading('');
   };
 
   const createIngestTx = async () => {
+    try {
+      const { authenticated } = await wallet.isAuthenticated();
+      if (!authenticated) {
+        alert('Unable to connect to wallet, please download Metanet Desktop from https://metanet.bsvb.tech and use Chrome');
+        return;
+      }
+    } catch (error) {
+      alert('Unable to connect to wallet, please download Metanet Desktop from https://metanet.bsvb.tech and use Chrome');
+      return;
+    }
     if (results.length === 0) {
       alert('No outputs found to ingest');
       return;
@@ -215,6 +237,14 @@ const generateAddresses = async () => {
   <div className="form-group">
     <label>Derivation Path Prefix:</label>
     <input className="form-input" value={pathPrefix} onChange={e => setPathPrefix(e.target.value)} />
+  </div>
+  <div className="form-group">
+    <label>Consecutive Unused Gap:</label>
+    <input className="form-input" type="number" value={consecutiveUnusedGap} onChange={e => setConsecutiveUnusedGap(parseInt(e.target.value) || 0)} />
+  </div>
+  <div className="form-group">
+    <label>Start Offset:</label>
+    <input className="form-input" type="number" value={startOffset} onChange={e => setStartOffset(parseInt(e.target.value) || 0)} />
   </div>
   <button className="primary-button" onClick={generateAddresses} disabled={!!isLoading}>Derive and Check Balance of Addresses</button>
 </form>
