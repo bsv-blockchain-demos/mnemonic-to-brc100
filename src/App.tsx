@@ -97,34 +97,38 @@ const generateAddresses = async () => {
     const usedResults: Result[] = [];
 
     while (consecutiveUnused < consecutiveUnusedGap) {
-      const fullPath = `${pathPrefix}/${index}`;
-      const childKey = masterKey.derive(fullPath);
-      const privKey = childKey.privKey as PrivateKey;
-      const pubKey = privKey.toPublicKey() as PublicKey;
-      const address = pubKey.toAddress().toString();
-      console.log({ address })
-      setIsLoading(`Checking address ${index}: ${address}`);
+      try {
+        const fullPath = `${pathPrefix}/${index}`.replace(/’/g, "'");
+        const childKey  = masterKey.derive(fullPath);
+        const privKey = childKey.privKey as PrivateKey;
+        const pubKey = privKey.toPublicKey() as PublicKey;
+        const address = pubKey.toAddress().toString();
+        console.log({ address })
+        setIsLoading(`Checking address ${index}: ${address}`);
 
-      // Check if ever used (using history length > 0)
-      const historyRes = await queuedFetch(`https://api.whatsonchain.com/v1/bsv/main/address/${address}/history`);
-      const history = await historyRes.json();
-      const isUsed = history.length > 0;
+        // Check if ever used (using history length > 0)
+        const historyRes = await queuedFetch(`https://api.whatsonchain.com/v1/bsv/main/address/${address}/history`);
+        const history = await historyRes.json();
+        const isUsed = history.length > 0;
 
-      if (isUsed) {
-        // Fetch current UTXOs
-        const unspentRes = await queuedFetch(`https://api.whatsonchain.com/v1/bsv/main/address/${address}/unspent/all`);
-        const utxos = await unspentRes.json();
-        if (utxos.result.length > 0) {
-          console.log('success')
-          const balance = utxos.result.reduce((sum: number, utxo: { value: number }) => sum + utxo.value, 0);
-          usedResults.push({ index, address, balance, count: utxos.result.length, utxos });
+        if (isUsed) {
+          // Fetch current UTXOs
+          const unspentRes = await queuedFetch(`https://api.whatsonchain.com/v1/bsv/main/address/${address}/unspent/all`);
+          const utxos = await unspentRes.json();
+          if (utxos.result.length > 0) {
+            console.log('success')
+            const balance = utxos.result.reduce((sum: number, utxo: { value: number }) => sum + utxo.value, 0);
+            usedResults.push({ index, address, balance, count: utxos.result.length, utxos });
+          }
+          consecutiveUnused = 0;
+        } else {
+          consecutiveUnused++;
         }
-        consecutiveUnused = 0;
-      } else {
-        consecutiveUnused++;
+        index++;
+      } catch (error) {
+        console.error({ error })
+        break
       }
-
-      index++;
     }
 
     setResults(r => {
@@ -164,7 +168,7 @@ const generateAddresses = async () => {
       // Collect all UTXOs with their details
       const utxosByTxid: { [key: string]: { vout: number; privKey: PrivateKey; value: number }[] } = {};
       results.forEach(res => {
-        const fullPath = `${pathPrefix}/${res.index}`;
+        const fullPath = `${pathPrefix}/${res.index}`.replace(/’/g, "'");
         const childKey = masterKey.derive(fullPath);
         const privKey = childKey.privKey as PrivateKey;
 
