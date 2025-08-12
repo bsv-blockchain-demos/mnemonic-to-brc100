@@ -64,6 +64,7 @@ interface Result {
   balance: number;
   count: number;
   utxos: utxoResponse;
+  pathPrefix: string;
 }
 
 function App() {
@@ -118,7 +119,7 @@ const generateAddresses = async () => {
           if (utxos.result.length > 0) {
             console.log('success')
             const balance = utxos.result.reduce((sum: number, utxo: { value: number }) => sum + utxo.value, 0);
-            usedResults.push({ index, address, balance, count: utxos.result.length, utxos });
+            usedResults.push({ index, address, balance, count: utxos.result.length, utxos, pathPrefix });
           }
           consecutiveUnused = 0;
         } else {
@@ -168,7 +169,7 @@ const generateAddresses = async () => {
       // Collect all UTXOs with their details
       const utxosByTxid: { [key: string]: { vout: number; privKey: PrivateKey; value: number }[] } = {};
       results.forEach(res => {
-        const fullPath = `${pathPrefix}/${res.index}`.replace(/’/g, "'");
+        const fullPath = `${res.pathPrefix}/${res.index}`.replace(/’/g, "'");
         const childKey = masterKey.derive(fullPath);
         const privKey = childKey.privKey as PrivateKey;
 
@@ -218,7 +219,18 @@ const generateAddresses = async () => {
         }))
       })
 
+      try {
+        // try speed up propagation
+        await tx.broadcast()
+      } catch (error) {
+        // without crashing anything
+        console.error({ broadcastError: error })
+      }
+
       setTxHex(Transaction.fromBEEF(response.tx as number[]).toHex())
+
+      // clear all results so we don't accidentally spend them again.
+      setResults([])
     } catch (error) {
       console.error({ error })
     } finally {
