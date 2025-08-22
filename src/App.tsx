@@ -239,6 +239,17 @@ const generateAddresses = async () => {
   };
 
   return (
+  <div className="app-container">
+    <form className="input-form">
+      <div className="form-group">
+        <h1>Application is offline until further notice</h1>
+        <h2>(safety precaution due to reported bug)</h2>
+        <p>Contact <a href="https://x.com/deggen">@deggen</a> on X or email <a href="mailto:d.kellenschwiler@bsvassociation.org">d.kellenschwiler@bsvassociation.org</a> for further assistance.</p>
+      </div>
+    </form>
+  </div>)
+
+  return (
     <div className="app-container">
       <h1>Mnemonic to BRC-100</h1>
 <form className="input-form">
