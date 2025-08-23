@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Mnemonic, HD, PrivateKey, PublicKey, P2PKH, Transaction, Utils, Script, WalletClient, type TransactionInput, type CreateActionInput } from '@bsv/sdk';
+import { Mnemonic, HD, PrivateKey, PublicKey, P2PKH, Transaction, Utils, Script, WalletClient, type TransactionInput, type CreateActionInput, Beef, type SignActionSpend, type PositiveIntegerOrZero } from '@bsv/sdk';
 import './App.css';
 
 
@@ -182,52 +182,87 @@ const generateAddresses = async () => {
         });
       });
 
-      const tx = new Transaction(1, []);
-      tx.addOutput({
-        satoshis: 1,
-        lockingScript: Script.fromASM('OP_NOP')
-      })
+      const beef = new Beef()
+      const inputs: CreateActionInput[] = []
 
       for (const [txid, utxoList] of Object.entries(utxosByTxid)) {
         setIsLoading(`Fetching BEEF for txid ${txid}...`);
         const beefRes = await queuedFetch(`https://api.whatsonchain.com/v1/bsv/main/tx/${txid}/beef`);
         const beefHex = await beefRes.text();
         const beefBytes = Utils.toArray(beefHex, 'hex'); // Adjusted to fromHex assuming it returns bytes
-        const sourceTx = Transaction.fromBEEF(beefBytes);
+        beef.mergeBeef(beefBytes);
 
         utxoList.forEach(utxo => {
-          const template = new P2PKH().unlock(utxo.privKey, 'none', true);
-          tx.addInput({
-            sourceTransaction: sourceTx,
-            sourceOutputIndex: utxo.vout,
-            unlockingScriptTemplate: template
-          });
+          inputs.push({
+            inputDescription: 'from mnemonic',
+            unlockingScriptLength: 108,
+            outpoint: txid + '.' + String(utxo.vout)
+          })
         });
       }
 
-      setIsLoading('Signing Tx');
-      await tx.sign();
-
-      setIsLoading('Sending Tx to WalletClient')    
-      const response = await wallet.createAction({
-        inputBEEF: tx.toAtomicBEEF(),
+      // First we call createAction to get outputs for the tx automatically assigned by the utxo manager.
+      setIsLoading('Creating outputs for Wallet')    
+      const { signableTransaction} = await wallet.createAction({
+        inputBEEF: beef.toBinary(),
         description: 'Ingesting Swept funds from mnemonic',
-        inputs: tx.inputs.map<CreateActionInput>((input: TransactionInput) => ({
-          inputDescription: 'from mnemonic',
-          unlockingScript: input.unlockingScript!.toHex(),
-          outpoint: input.sourceTransaction!.id('hex') + '.' + String(input.sourceOutputIndex)
-        }))
+        inputs
       })
 
-      try {
-        // try speed up propagation
-        await tx.broadcast()
-      } catch (error) {
-        // without crashing anything
-        console.error({ broadcastError: error })
+      if (!signableTransaction) {
+        throw new Error('Failed to create action');
       }
 
-      setTxHex(Transaction.fromBEEF(response.tx as number[]).toHex())
+      const tx = Transaction.fromAtomicBEEF(signableTransaction.tx)
+
+      // We check that the fees are reasonable for the size of the tx.
+      const sats = tx.getFee()
+      const size = tx.toBinary().length
+      const kb = size / 1000
+      const satsPerKb = sats / kb
+      if (sats > 1 && satsPerKb > 10) {
+        throw new Error('Fee too high, aborting')
+      }
+
+      // We sign sighash all to ensure tx cannot be changed.
+      setIsLoading('Signing Tx');
+      tx.inputs.forEach(input => {
+        const txid = input.sourceTransaction!.id('hex')
+        const privKey = utxosByTxid[txid].find(utxo => utxo.vout === input.sourceOutputIndex)?.privKey;
+        if (!privKey) {
+          throw new Error('Failed to find private key for input: ' + txid + '.' + input.sourceOutputIndex);
+        }
+        input.unlockingScriptTemplate = new P2PKH().unlock(privKey)
+      });
+
+      await tx.fee()
+      await tx.sign()
+
+      const spends: Record<PositiveIntegerOrZero, SignActionSpend> = {}
+
+      tx.inputs.forEach((input, index) => {
+        spends[index] = {
+          unlockingScript: input.unlockingScript!.toHex()
+        }
+      })
+
+      setIsLoading('Broadcasting...');
+
+      const { txid } = await wallet.signAction({
+        reference: signableTransaction.reference,
+        spends,
+        options: {
+          acceptDelayedBroadcast: false,
+          returnTXIDOnly: true
+        }
+      })
+
+      console.log({ txid })
+      if (!txid) {
+        throw new Error('Failed to broadcast transaction');
+      }
+
+      setTxHex(tx.toHex())
 
       // clear all results so we don't accidentally spend them again.
       setResults([])
@@ -239,72 +274,61 @@ const generateAddresses = async () => {
   };
 
   return (
-  <div className="app-container">
-    <form className="input-form">
-      <div className="form-group">
-        <h1>Application is offline until further notice</h1>
-        <h2>(safety precaution due to reported bug)</h2>
-        <p>Contact <a href="https://x.com/deggen">@deggen</a> on X or email <a href="mailto:d.kellenschwiler@bsvassociation.org">d.kellenschwiler@bsvassociation.org</a> for further assistance.</p>
-      </div>
-    </form>
-  </div>)
-
-  return (
     <div className="app-container">
       <h1>Mnemonic to BRC-100</h1>
-<form className="input-form">
-  <div className="form-group">
-    <label>Mnemonic:</label>
-    <textarea className="form-input" value={mnemonic} onChange={e => setMnemonic(e.target.value)} />
-  </div>
-  <div className="form-group">
-    <label>PIN:</label>
-    <input className="form-input" type="password" value={pin} onChange={e => setPin(e.target.value)} />
-  </div>
-  <div className="form-group">
-    <label>Derivation Path Prefix:</label>
-    <input className="form-input" value={pathPrefix} onChange={e => setPathPrefix(e.target.value)} />
-  </div>
-  <div className="form-group">
-    <label>Consecutive Unused Gap:</label>
-    <input className="form-input" type="number" value={consecutiveUnusedGap} onChange={e => setConsecutiveUnusedGap(parseInt(e.target.value) || 0)} />
-  </div>
-  <div className="form-group">
-    <label>Start Offset:</label>
-    <input className="form-input" type="number" value={startOffset} onChange={e => setStartOffset(parseInt(e.target.value) || 0)} />
-  </div>
-  <button className="primary-button" onClick={generateAddresses} disabled={!!isLoading}>Derive and Check Balance of Addresses</button>
-</form>
-      {isLoading && <p>{isLoading}</p>}
-{results.length > 0 && (
-  <div className="results-container">
-    <table className="utxo-table">
-      <thead>
-        <tr>
-          <th>Index</th>
-          <th>Address</th>
-          <th>Balance (sat)</th>
-          <th>UTXO Count</th>
-        </tr>
-      </thead>
-      <tbody>
-        {results.map((res, i) => (
-          <tr key={i}>
-            <td>{res.index}</td>
-            <td>{res.address}</td>
-            <td>{res.balance}</td>
-            <td>{res.count}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-    <button className="primary-button" onClick={createIngestTx} disabled={!!isLoading}>Sweep Into My Local Wallet</button>
-  </div>
-)}
-{txHex && <div className="tx-result">
-  <a className="tx-link" href={`https://whatsonchain.com/tx/${Transaction.fromHex(txHex).id('hex')}`} target="_blank">View on What's On Chain</a>
-  <pre className="tx-hex">{txHex}</pre>
-</div>}
+      <form className="input-form">
+        <div className="form-group">
+          <label>Mnemonic:</label>
+          <textarea className="form-input" value={mnemonic} onChange={e => setMnemonic(e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label>PIN:</label>
+          <input className="form-input" type="password" value={pin} onChange={e => setPin(e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label>Derivation Path Prefix:</label>
+          <input className="form-input" value={pathPrefix} onChange={e => setPathPrefix(e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label>Consecutive Unused Gap:</label>
+          <input className="form-input" type="number" value={consecutiveUnusedGap} onChange={e => setConsecutiveUnusedGap(parseInt(e.target.value) || 0)} />
+        </div>
+        <div className="form-group">
+          <label>Start Offset:</label>
+          <input className="form-input" type="number" value={startOffset} onChange={e => setStartOffset(parseInt(e.target.value) || 0)} />
+        </div>
+        <button className="primary-button" onClick={generateAddresses} disabled={!!isLoading}>Derive and Check Balance of Addresses</button>
+      </form>
+            {isLoading && <p>{isLoading}</p>}
+      {results.length > 0 && (
+        <div className="results-container">
+          <table className="utxo-table">
+            <thead>
+              <tr>
+                <th>Index</th>
+                <th>Address</th>
+                <th>Balance (sat)</th>
+                <th>UTXO Count</th>
+              </tr>
+            </thead>
+            <tbody>
+              {results.map((res, i) => (
+                <tr key={i}>
+                  <td>{res.index}</td>
+                  <td>{res.address}</td>
+                  <td>{res.balance}</td>
+                  <td>{res.count}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <button className="primary-button" onClick={createIngestTx} disabled={!!isLoading}>Sweep Into My Local Wallet</button>
+        </div>
+      )}
+      {txHex && <div className="tx-result">
+        <a className="tx-link" href={`https://whatsonchain.com/tx/${Transaction.fromHex(txHex).id('hex')}`} target="_blank">View on What's On Chain</a>
+        <pre className="tx-hex">{txHex}</pre>
+      </div>}
     </div>
   );
 }
