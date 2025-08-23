@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Mnemonic, HD, PrivateKey, PublicKey, P2PKH, Transaction, Utils, Script, WalletClient, type TransactionInput, type CreateActionInput, Beef, type SignActionSpend, type PositiveIntegerOrZero } from '@bsv/sdk';
+import { Mnemonic, HD, PrivateKey, PublicKey, P2PKH, Transaction, Utils, WalletClient, type CreateActionInput, Beef, type SignActionSpend, type PositiveIntegerOrZero } from '@bsv/sdk';
 import './App.css';
 
 
