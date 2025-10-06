@@ -10,7 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@bsv/sdk": "^1.6.22",
+    "@bsv/sdk": "^1.8.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
