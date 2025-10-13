@@ -74,19 +74,23 @@ function App() {
   const [results, setResults] = useState<Result[]>([]);
   const [txHex, setTxHex] = useState<string>('');
   const [isLoading, setIsLoading] = useState<string>('');
+  const [error, setError] = useState<string>('');
 
 const [consecutiveUnusedGap, setConsecutiveUnusedGap] = useState<number>(5);
 
 const [startOffset, setStartOffset] = useState<number>(0);
 
-const generateAddresses = async () => {
+const generateAddresses = async (e?: React.MouseEvent<HTMLButtonElement>) => {
+  e?.preventDefault(); // Prevent form submission
+  setError(''); // Clear any previous errors
   setIsLoading('Generating seed...');
     let seed: number[];
     try {
       const mn = new Mnemonic(mnemonic);
       seed = mn.toSeed(pin);
     } catch (e) {
-      alert('Invalid mnemonic or PIN');
+      setError('Invalid mnemonic or PIN');
+      setIsLoading('');
       return;
     }
 
@@ -147,18 +151,21 @@ const generateAddresses = async () => {
   };
 
   const createIngestTx = async () => {
+    setError(''); // Clear any previous errors
     try {
       const { authenticated } = await wallet.isAuthenticated();
       if (!authenticated) {
-        alert('Unable to connect to wallet, please download Metanet Desktop from https://metanet.bsvb.tech and use Chrome');
+        const errorMsg = 'Unable to connect to wallet, please download Metanet Desktop from https://metanet.bsvb.tech';
+        setError(errorMsg);
         return;
       }
     } catch (error) {
-      alert('Unable to connect to wallet, please download Metanet Desktop from https://metanet.bsvb.tech and use Chrome');
+      const errorMsg = 'Unable to connect to wallet, please download Metanet Desktop from https://metanet.bsvb.tech';
+      setError(errorMsg);
       return;
     }
     if (results.length === 0) {
-      alert('No outputs found to ingest');
+      setError('No outputs found to ingest');
       return;
     }
     try {
@@ -270,6 +277,7 @@ const generateAddresses = async () => {
       setResults([])
     } catch (error) {
       console.error({ error })
+      setError(JSON.stringify(error, Object.getOwnPropertyNames(error), 2))
     } finally {
       setIsLoading('');
     }
@@ -292,6 +300,32 @@ const generateAddresses = async () => {
         <div className="form-group">
           <label>Derivation Path Prefix:</label>
           <input className="form-input" value={pathPrefix} onChange={e => setPathPrefix(e.target.value)} />
+          <table className="path-table">
+            <thead>
+              <tr>
+                <th>Wallet</th>
+                <th>Derivation Path</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr onClick={() => setPathPrefix("m/44'/0/0")}>
+                <td>Centbee</td>
+                <td><code>m/44'/0/0</code></td>
+              </tr>
+              <tr onClick={() => setPathPrefix("m/0'/0")}>
+                <td>Rock Wallet</td>
+                <td><code>m/0'/0</code></td>
+              </tr>
+              <tr onClick={() => setPathPrefix("m/44'/236'/0'")}>
+                <td>Electrum SV</td>
+                <td><code>m/44'/236'/0'</code></td>
+              </tr>
+              <tr onClick={() => setPathPrefix("m/44'/0'/0'")}>
+                <td>Common elsewhere</td>
+                <td><code>m/44'/0'/0'</code></td>
+              </tr>
+            </tbody>
+          </table>
         </div>
         <div className="form-group">
           <label>Consecutive Unused Gap:</label>
@@ -303,7 +337,13 @@ const generateAddresses = async () => {
         </div>
         <button className="primary-button" onClick={generateAddresses} disabled={!!isLoading}>Derive and Check Balance of Addresses</button>
       </form>
-            {isLoading && <p>{isLoading}</p>}
+      {error && (
+        <div className="error-box">
+          <strong>Error:</strong>
+          <pre>{error}</pre>
+        </div>
+      )}
+      {isLoading && <p>{isLoading}</p>}
       {results.length > 0 && (
         <div className="results-container">
           <table className="utxo-table">

@@ -27,6 +27,93 @@
   gap: 0.5rem;
 }
 
+.path-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+  border: 1px solid #d1d1d6;
+}
+
+.path-table th,
+.path-table td {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.path-table th {
+  background-color: #f2f2f7;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #666;
+  border-bottom: 1px solid #d1d1d6;
+}
+
+.path-table tbody tr {
+  border-bottom: 1px solid #e8e8ed;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.path-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.path-table tbody tr:hover {
+  background-color: #f9f9fb;
+}
+
+.path-table tbody tr:active {
+  background-color: #e8e8ed;
+}
+
+.path-table code {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  background-color: #f2f2f7;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: #0a84ff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .path-table {
+    border-color: #3a3a3c;
+  }
+
+  .path-table th {
+    background-color: #2c2c2e;
+    color: #a0a0a0;
+    border-bottom-color: #3a3a3c;
+  }
+
+  .path-table td {
+    color: #ffffff;
+  }
+
+  .path-table tbody tr {
+    border-bottom-color: #3a3a3c;
+  }
+
+  .path-table tbody tr:hover {
+    background-color: #3a3a3c;
+  }
+
+  .path-table tbody tr:active {
+    background-color: #4a4a4c;
+  }
+
+  .path-table code {
+    background-color: #3a3a3c;
+    color: #0a84ff;
+  }
+}
+
 label {
   font-size: 1rem;
   font-weight: 500;
@@ -90,6 +177,46 @@ textarea.form-input {
 .primary-button:disabled {
   background-color: #d1d1d6;
   cursor: not-allowed;
+}
+
+.error-box {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: #fff2f2;
+  border: 1px solid #ffcccc;
+  border-radius: 10px;
+  color: #cc0000;
+}
+
+.error-box strong {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.error-box pre {
+  margin: 0;
+  padding: 0.5rem;
+  background-color: #ffe6e6;
+  border-radius: 6px;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+}
+
+@media (prefers-color-scheme: dark) {
+  .error-box {
+    background-color: #3a1a1a;
+    border-color: #663333;
+    color: #ff6666;
+  }
+
+  .error-box pre {
+    background-color: #2a1010;
+    color: #ff9999;
+  }
 }
 
 .results-container {
