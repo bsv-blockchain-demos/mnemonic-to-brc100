@@ -8,9 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest",
-    "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage"
+    "test": "npx tsx test-key-alignment.ts && npx tsx test-signature-validation.ts"
   },
   "dependencies": {
     "@bsv/sdk": "^1.8.2",
@@ -32,6 +30,6 @@
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.35.1",
     "vite": "^7.0.4",
-    "vitest": "^3.0.0"
+    "vitest": "^3.2.4"
   }
 }

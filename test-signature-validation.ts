@@ -342,9 +342,13 @@ async function testActualIngestTxFlow() {
   // Create spending transaction
   const spendingTx = new Transaction();
 
-  // Add inputs based on the structure
-  for (const [txid, utxoList] of Object.entries(utxosByTxid)) {
-    const sourceTx = sourceTxs[txid];
+  // Rebuild utxosByTxid with actual transaction IDs
+  const actualUtxosByTxid: { [key: string]: { vout: number; privKey: PrivateKey; value: number }[] } = {};
+
+  for (const [mockTxid, utxoList] of Object.entries(utxosByTxid)) {
+    const sourceTx = sourceTxs[mockTxid];
+    const actualTxid = sourceTx.id('hex');
+    actualUtxosByTxid[actualTxid] = utxoList;
 
     utxoList.forEach(utxo => {
       spendingTx.inputs.push({
@@ -359,7 +363,7 @@ async function testActualIngestTxFlow() {
   console.log(`\nCreated transaction with ${spendingTx.inputs.length} inputs`);
 
   // Add output
-  const totalInput = Object.values(utxosByTxid)
+  const totalInput = Object.values(actualUtxosByTxid)
     .flat()
     .reduce((sum, utxo) => sum + utxo.value, 0);
 
@@ -372,7 +376,7 @@ async function testActualIngestTxFlow() {
   console.log('\nSimulating signing loop:');
   spendingTx.inputs.forEach((input, idx) => {
     const txid = input.sourceTransaction!.id('hex');
-    const privKey = utxosByTxid[txid].find(utxo => utxo.vout === input.sourceOutputIndex)?.privKey;
+    const privKey = actualUtxosByTxid[txid].find(utxo => utxo.vout === input.sourceOutputIndex)?.privKey;
 
     if (!privKey) {
       throw new Error(`Failed to find private key for input ${idx}: ${txid}.${input.sourceOutputIndex}`);

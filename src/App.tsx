@@ -4,7 +4,7 @@ import './App.css';
 
 
 /** FIFO queue for throttling API requests to max 3 per second */
-const requestQueue: { url: string; resolve: (value: Response) => void; reject: (reason?: any) => void; }[] = [];
+const requestQueue: { url: string; resolve: (value: Response) => void; reject: (reason?: unknown) => void; }[] = [];
 
 let isProcessing = false;
 
@@ -88,7 +88,7 @@ const generateAddresses = async (e?: React.MouseEvent<HTMLButtonElement>) => {
     try {
       const mn = new Mnemonic(mnemonic);
       seed = mn.toSeed(pin);
-    } catch (e) {
+    } catch {
       setError('Invalid mnemonic or PIN');
       setIsLoading('');
       return;
@@ -159,7 +159,7 @@ const generateAddresses = async (e?: React.MouseEvent<HTMLButtonElement>) => {
         setError(errorMsg);
         return;
       }
-    } catch (error) {
+    } catch {
       const errorMsg = 'Unable to connect to wallet, please download Metanet Desktop from https://metanet.bsvb.tech';
       setError(errorMsg);
       return;
