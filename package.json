@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "npx tsx test-key-alignment.ts && npx tsx test-signature-validation.ts"
+    "test": "npx tsx test-key-alignment.ts && npx tsx test-signature-validation.ts && npx tsx test-transaction-signing.ts"
   },
   "dependencies": {
     "@bsv/sdk": "^1.8.2",
