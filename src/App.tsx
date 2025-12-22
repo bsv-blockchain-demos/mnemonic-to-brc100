@@ -181,6 +181,7 @@ const generateAddresses = async (e?: React.MouseEvent<HTMLButtonElement>) => {
         const fullPath = `${res.pathPrefix}/${res.index}`.replace(/’/g, "'");
         const childKey = masterKey.derive(fullPath);
         const privKey = childKey.privKey as PrivateKey;
+        console.log({ address: privKey.toAddress() })
 
         res.utxos.result.forEach((utxo: { tx_hash: string; tx_pos: number; value: number }) => {
           const txid = utxo.tx_hash;
@@ -239,13 +240,13 @@ const generateAddresses = async (e?: React.MouseEvent<HTMLButtonElement>) => {
       tx.inputs.forEach(input => {
         const txid = input.sourceTransaction!.id('hex')
         const privKey = utxosByTxid[txid].find(utxo => utxo.vout === input.sourceOutputIndex)?.privKey;
+        console.log({ addressSign: privKey?.toAddress() })
         if (!privKey) {
           throw new Error('Failed to find private key for input: ' + txid + '.' + input.sourceOutputIndex);
         }
         input.unlockingScriptTemplate = new P2PKH().unlock(privKey)
       });
 
-      await tx.fee()
       await tx.sign()
 
       const spends: Record<PositiveIntegerOrZero, SignActionSpend> = {}
