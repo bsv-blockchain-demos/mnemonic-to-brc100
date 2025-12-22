@@ -40,7 +40,7 @@ The application follows a two-phase workflow:
    - Connects to local BRC-100 wallet (Metanet Desktop) via `WalletClient`
    - Fetches BEEF (BSV Expanded Format) for each UTXO's source transaction
    - Creates and signs an ingest transaction using wallet's output assignment
-   - Validates fees (< 10 sats/kb) before broadcasting
+   - Validates fees (< 110 sats/kb) before broadcasting
    - Signs with P2PKH and broadcasts via wallet
 
 ### API Rate Limiting
@@ -83,7 +83,7 @@ Simple React `useState` hooks manage:
 ## Important Patterns
 
 ### Fee Validation
-Always validate fees before broadcasting ([src/App.tsx:220-227](src/App.tsx#L220-L227)). Throw error if sats/kb > 10 to prevent excessive fees.
+Always validate fees before broadcasting ([src/App.tsx:220-227](src/App.tsx#L220-L227)). Throw error if sats/kb > 110 to prevent excessive fees.
 
 ### UTXO Filtering
 Filter out mempool-spent UTXOs ([src/App.tsx:119](src/App.tsx#L119)) to prevent double-spend attempts.

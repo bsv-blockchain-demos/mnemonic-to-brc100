@@ -76,7 +76,7 @@
 ### 5. Transaction Signing (Lines 240-241)
 
 - [x] ✅ Fee calculated before signing
-- [x] ✅ Fee validated (< 10 sats/kb)
+- [x] ✅ Fee validated (< 110 sats/kb)
 - [x] ✅ Transaction signed with correct keys
 - [x] ✅ Signatures verified by wallet
 - [x] ✅ Unlocking scripts generated correctly

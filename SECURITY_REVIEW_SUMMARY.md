@@ -30,7 +30,7 @@ The private key handling in `createIngestTx` is **cryptographically secure** and
 | Path prefix preservation | ✅ SECURE | Test 8: Mixed paths correctly maintained |
 | Signature validation | ✅ SECURE | Test 2, 3: Wrong keys fail cryptographically |
 | Mempool protection | ✅ SECURE | Line 119: Filters spent UTXOs |
-| Fee validation | ✅ SECURE | Lines 220-227: Validates sats/kb < 10 |
+| Fee validation | ✅ SECURE | Lines 220-227: Validates sats/kb < 110 |
 
 ---
 
