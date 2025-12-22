@@ -229,7 +229,7 @@ const generateAddresses = async (e?: React.MouseEvent<HTMLButtonElement>) => {
       const size = tx.toBinary().length
       const kb = size / 1000
       const satsPerKb = sats / kb
-      if (sats > 1 && satsPerKb > 10) {
+      if (sats > 1 && satsPerKb > 110) {
         throw new Error('Fee too high, aborting')
       }
 
