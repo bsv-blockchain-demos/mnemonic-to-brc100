@@ -212,7 +212,7 @@ const generateAddresses = async (e?: React.MouseEvent<HTMLButtonElement>) => {
 
       // First we call createAction to get outputs for the tx automatically assigned by the utxo manager.
       setIsLoading('Creating outputs for Wallet')    
-      const { signableTransaction} = await wallet.createAction({
+      const { signableTransaction } = await wallet.createAction({
         inputBEEF: beef.toBinary(),
         description: 'Ingesting Swept funds from mnemonic',
         inputs
@@ -229,6 +229,7 @@ const generateAddresses = async (e?: React.MouseEvent<HTMLButtonElement>) => {
       const size = tx.toBinary().length
       const kb = size / 1000
       const satsPerKb = sats / kb
+      console.log([ sats, size, kb, satsPerKb ])
       if (sats > 1 && satsPerKb > 110) {
         throw new Error('Fee too high, aborting')
       }
