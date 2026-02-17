@@ -289,7 +289,7 @@ const generateAddresses = async (e?: React.MouseEvent<HTMLButtonElement>) => {
     <div className="app-container">
       <h1>Mnemonic to BRC-100</h1>
       <p>Use at your own risk. Preferably run this locally after inspecting the <a href="https://github.com/bsv-blockchain-demos/mnemonic-to-brc100">Source Code</a> yourself. This website is provided as-is with no warranties, nor guarantees. See <a href="/LICENSE.txt">LICENSE</a> for details.</p>
-      <p>If you have made a successful transfer and wish to make another, hard referesh the page to clear all results so you don't accidentally attempt to spend those same coins again.</p>
+      <p>If you have made a successful transfer and wish to make another, hard refresh the page to clear all results so you don't accidentally attempt to spend those same coins again.</p>
       <form className="input-form">
         <div className="form-group">
           <label>Mnemonic:</label>
